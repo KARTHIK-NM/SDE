@@ -58,3 +58,4 @@ flowchart TD
 3. **Guaranteed Non-Execution:** If an approval is rejected or its TTL elapses, the executor produces a cancellation audit record without invoking any tool callback.
 4. **Idempotency-Bounded Retries:** Only tools flagged as idempotent may be retried. Non-idempotent operations fail immediately on the first error to prevent unintended side effects.
 5. **Immediate Cancellation:** If a cancellation event is signaled, in-flight retries and all downstream steps are skipped immediately.
+
