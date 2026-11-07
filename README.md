@@ -1,108 +1,106 @@
 # Academia AI Voice Co-Pilot — SDE Internship
 
+**Team:** SDE 2  
+**Workstream:** W4 — Agentic Workflow Engine (Weeks 1 & 2 / Days 1–14)  
 **Contributor:** Karthik N M  
-**Role:** SDE 2  
 **Email:** karthiknm8050@gmail.com  
-**Repository:** [https://github.com/KARTHIK-NM/SDE](https://github.com/KARTHIK-NM/SDE)  
 **Branch:** `main` & `team/sde-2-voicebot`  
+**Project Folder:** `projects/sde-2-voicebot/`  
+**Repository:** [https://github.com/KARTHIK-NM/SDE](https://github.com/KARTHIK-NM/SDE)  
 
 ---
 
-## Project Overview
+## 🎯 Executive Summary
 
-This repository contains the complete codebase and documentation for the **Academia AI Voice Co-Pilot** SDE Internship, covering both **Week 1** and **Week 2** for **Workstream W4: Agentic Workflow Engine**.
+This repository delivers the **complete, unified Agentic Workflow Engine** for the **Academia AI Voice Co-Pilot**, combining all deliverables across **Week 1** and **Week 2**:
 
-The goal of this system is to provide a persistent, context-aware, multimodal agentic AI assistance layer that runs safely on a user's machine — supporting natural voice interactions, visual and document understanding, human-in-the-loop safety gating, and controlled tool execution.
+- **Week 1 (Days 1–7):** Typed schemas, 7-state deterministic lifecycle state machine, harmless in-memory mock tools (`knowledge_search`, `course_schedule`), and human-in-the-loop approval gating.
+- **Week 2 (Days 8–14):** Plan validator (dependencies & cycle detection via Kahn's algorithm / 3-color DFS), allow-listed tool registry with argument type and permission scope enforcement, approval logic with TTL expiry, safe executor (timeouts, bounded retries strictly for idempotent operations, non-idempotent protection, and cancellation), and comprehensive policy testing (102 automated tests passing).
 
 ---
 
-## Repository Structure
+## 📁 Unified Project Structure
 
 ```
 .
-├── WEEK1/
-│   └── voicebot-SDE2-teamm-karthik-nm/
-│       ├── projects/
-│       │   └── sde-2-voicebot/
-│       │       ├── demo.py                             # Week 1 demonstration script
-│       │       ├── src/workflow/                       # Core workflow engine
-│       │       │   ├── executor.py                     # Workflow execution & approval gating
-│       │       │   ├── schemas.py                      # Data schemas & contracts
-│       │       │   ├── state_machine.py                # 7-state lifecycle state machine
-│       │       │   ├── tools.py                        # Harmless mock tools & tool registry
-│       │       │   ├── validator.py                    # Plan validation (cycles & missing deps)
-│       │       │   └── README.md                       # Workflow module documentation
-│       │       └── tests/                              # Week 1 test suite (35+ unit tests)
-│       │           ├── test_invalid_plans_and_transitions.py
-│       │           ├── test_mock_tools_and_executor.py
-│       │           ├── test_week2_policy_and_safe_executor.py
-│       │           └── test_workflow_schemas_and_sm.py
-│       ├── README.md                                   # Week 1 team documentation
-│       ├── project_explanation.md                      # Detailed technical architecture guide
-│       └── week1_explanation.md                        # Day-by-day implementation breakdown
-│
-└── WEEK2/
-    ├── projects/
-    │   └── sde-2-voicebot/
-    │       ├── schemas.py                              # Shared Pydantic schemas (Week 1 base)
-    │       ├── plan_validator.py                       # Dependency & cycle validation (Kahn's algo)
-    │       ├── tool_registry.py                        # Allow-listed registry with arg & scope validation
-    │       ├── approval_manager.py                     # Human-in-the-loop approval, reject & TTL expiry
-    │       ├── safe_executor.py                        # Safe executor (timeouts, retries, cancellation)
-    │       ├── mock_tools.py                           # Harmless mock tools (no external network/FS write)
-    │       ├── requirements.txt                        # Dependencies
-    │       ├── README.md                               # Week 2 module documentation
-    │       └── tests/                                  # Full test suite (55 tests passing, zero warnings)
-    │           ├── conftest.py                         # Shared pytest fixtures & test helpers
-    │           ├── test_plan_validator.py              # Tests for plan validation
-    │           ├── test_tool_registry.py               # Tests for registry & scopes
-    │           ├── test_approval_manager.py            # Tests for approval & expiry
-    │           ├── test_safe_executor.py               # Tests for execution, timeouts, retries
-    │           └── test_demo.py                        # D14 end-to-end approved vs rejected demo
-    └── README.md                                       # Week 2 overview
+├── projects/
+│   └── sde-2-voicebot/
+│       ├── src/
+│       │   └── workflow/
+│       │       ├── schemas.py              # Single source of truth for workflow models
+│       │       ├── state_machine.py        # 7-state lifecycle controller with audit history
+│       │       ├── validator.py            # PlanValidator: cycles, deps, tools, scopes
+│       │       ├── tools.py                # Allow-listed registry & mock tools
+│       │       ├── executor.py             # Safe executor: timeouts, retries, cancellation
+│       │       └── README.md               # Detailed workflow architecture guide
+│       ├── schemas.py                      # Pydantic schemas interface
+│       ├── plan_validator.py               # Dependency & cycle validation engine
+│       ├── tool_registry.py                # Strict allow-list & permission scope registry
+│       ├── approval_manager.py             # Human-in-the-loop approval & TTL expiry manager
+│       ├── safe_executor.py                # Safe executor with timeouts & idempotent retries
+│       ├── mock_tools.py                   # Harmless in-memory mock tools
+│       ├── demo.py                         # Live interactive 5-scenario demonstration
+│       ├── requirements.txt                # Project dependencies
+│       ├── README.md                       # Voicebot module documentation
+│       └── tests/                          # 102 passing unit & policy tests
+│           ├── conftest.py
+│           ├── test_workflow_schemas_and_sm.py
+│           ├── test_invalid_plans_and_transitions.py
+│           ├── test_mock_tools_and_executor.py
+│           ├── test_week2_policy_and_safe_executor.py
+│           ├── test_plan_validator.py
+│           ├── test_tool_registry.py
+│           ├── test_approval_manager.py
+│           ├── test_safe_executor.py
+│           └── test_demo.py
+├── project_explanation.md                  # Comprehensive technical deep dive
+├── week1_explanation.md                    # Day-by-day breakdown of Week 1
+├── week2_explanation.md                    # Day-by-day breakdown of Week 2
+├── requirements.txt                        # Global requirements
+├── README.md                               # This documentation
+└── .gitignore
 ```
 
 ---
 
-## Deliverables Summary
+## 🚀 Quickstart & Commands
 
-### Week 1 (Days 1–7): Foundation & First Vertical Slice
-- **Days 1–2:** Schemas (`WorkflowPlan`, `WorkflowStep`, `ToolSpec`, `ApprovalRequest`, `WorkflowResult`) and 7-state lifecycle state machine.
-- **Days 3–4:** Two harmless mock tools (`knowledge_search`, `course_schedule`) with no external sending, `ToolRegistry`, and `WorkflowExecutor` with approval gating.
-- **Days 5–6:** Unit test suite validating invalid plans (cycles, missing dependencies, duplicate IDs) and state transitions.
-- **Day 7:** Demonstration script (`demo.py`) running harmless, approved, and rejected execution scenarios.
-
-### Week 2 (Days 8–14): Plan Validation, Tool Registry, Approval Logic & Safe Executor
-- **Days 8–9:** Dependency and cycle validation (`PlanValidator` with Kahn's topological sort); allow-listed `ToolRegistry` with strict argument schema verification and permission scopes (`read_files`, `search`, `compute`).
-- **Days 10–11:** Approval logic with expiry (`expires_at`, `get_status()`, `is_expired()`). Rejection or expiry guarantees zero tool execution and emits safe audit records.
-- **Days 12–13:** Safe executor with per-step timeouts, bounded retries strictly for idempotent tools (`idempotent=True`), non-idempotent tool protection, and cancellation via `threading.Event`.
-- **Day 14:** Policy test suite (55 tests passing, zero warnings) and D14 end-to-end demo of approved vs rejected execution paths.
-
----
-
-## How to Run
-
-### Running Week 2 (Safe Agentic Execution Engine)
+### 1. Install Dependencies
 
 ```bash
-cd WEEK2/projects/sde-2-voicebot
 pip install -r requirements.txt
-
-# Run all 55 tests
-pytest tests/ -v
-
-# Run the D14 approved vs rejected demonstration
-pytest tests/test_demo.py -v -s
 ```
 
-### Running Week 1 (Initial Vertical Slice)
+### 2. Run All Automated Tests (102 Tests Passing)
 
 ```bash
-cd WEEK1/voicebot-SDE2-teamm-karthik-nm/projects/sde-2-voicebot
+cd projects/sde-2-voicebot
+python -m pytest tests/ -v
+```
 
-# Run Week 1 tests
-pytest tests/ -v
+### 3. Run the Live Interactive Demonstration (5 Scenarios)
 
-# Run Week 1 demo
+```bash
+cd projects/sde-2-voicebot
 python demo.py
 ```
+
+### 4. Run the D14 Approved vs. Rejected Pipeline Demo
+
+```bash
+cd projects/sde-2-voicebot
+python -m pytest tests/test_demo.py -v -s
+```
+
+---
+
+## 🛡️ Key Safety Invariants Enforced
+
+| Safety Invariant | Implementation Mechanism | Test Verification |
+| :--- | :--- | :--- |
+| **Cycle & Missing Dep Prevention** | `PlanValidator` uses DFS & Kahn's topological sort | `test_validator_rejects_cycles_with_clear_error`, `test_invalid_plan_direct_cycle` |
+| **Allow-List Isolation** | `ToolRegistry` rejects unregistered tools and checks argument types | `test_unknown_tool_call_rejected`, `test_validator_rejects_unknown_tool` |
+| **Permission Scope Enforcement** | Tools declare required scopes; calls are verified against granted scopes | `test_missing_scope_is_rejected`, `test_validator_enforces_permission_scopes` |
+| **HITL Approval with Expiry** | Consequential actions require explicit approval; expired/rejected approvals guarantee 0 execution | `test_approval_rejection_guarantees_no_execution_and_audit_event`, `test_expired_approval_cannot_be_approved` |
+| **Timeouts & Bounded Retries** | Wall-clock step limits; retries strictly limited to idempotent calls | `test_slow_tool_times_out`, `test_non_idempotent_tool_not_retried` |
+| **Safe Cooperative Cancellation** | `threading.Event` checks halt subsequent steps immediately | `test_cancellation_before_first_step`, `test_cancellation_between_steps` |
