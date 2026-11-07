@@ -2,11 +2,16 @@
 Agentic Workflow Package for Academiaai AI Voicebot.
 Workstream: W4 (Agentic Workflow) - Team SDE 2
 Author: Karthik N M
+
+Week 1 (Days 1-7): Foundation, schemas, state machine, mock tools, executor, tests, demo.
+Week 2 (Days 8-14): PlanValidator (DAG, cycles, allow-lists, scopes), Approval expiry logic,
+                    timeouts, bounded idempotent retries, and comprehensive policy tests.
 """
 
 from src.workflow.schemas import (
     ApprovalRequest,
     ApprovalStatus,
+    RetryPolicy,
     RiskLevel,
     StepStatus,
     ToolFailureBehavior,
@@ -27,6 +32,10 @@ from src.workflow.tools import (
     MockKnowledgeSearchTool,
     ToolRegistry,
 )
+from src.workflow.validator import (
+    PlanValidationError,
+    PlanValidator,
+)
 from src.workflow.executor import (
     ExecutionEvent,
     WorkflowExecutor,
@@ -44,6 +53,7 @@ __all__ = [
     "ApprovalStatus",
     "StepStatus",
     "ToolFailureBehavior",
+    "RetryPolicy",
     # State Machine
     "WorkflowStateMachine",
     "InvalidStateTransitionError",
@@ -53,6 +63,9 @@ __all__ = [
     "MockKnowledgeSearchTool",
     "MockCourseScheduleTool",
     "ToolRegistry",
+    # Validator
+    "PlanValidator",
+    "PlanValidationError",
     # Executor
     "WorkflowExecutor",
     "ExecutionEvent",
