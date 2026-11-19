@@ -59,10 +59,6 @@ This repository delivers the **complete, unified Agentic Workflow Engine** for t
 │           ├── test_week3_audit_and_events.py
 │           ├── test_week3_reasoning_and_ui_integration.py
 │           └── test_week3_end_to_end_integration.py
-├── project_explanation.md                  # Comprehensive technical deep dive
-├── week1_explanation.md                    # Day-by-day breakdown of Week 1
-├── week2_explanation.md                    # Day-by-day breakdown of Week 2
-├── week3_explanation.md                    # Day-by-day breakdown of Week 3
 ├── requirements.txt                        # Global requirements
 ├── README.md                               # This documentation
 └── .gitignore
