@@ -1,7 +1,7 @@
 # Academia AI Voice Co-Pilot — SDE Internship
 
 **Team:** SDE 2  
-**Workstream:** W4 — Agentic Workflow Engine (Weeks 1 & 2 / Days 1–14)  
+**Workstream:** W4 — Agentic Workflow Engine (Weeks 1, 2 & 3 / Days 1–21)  
 **Contributor:** Karthik N M  
 **Email:** karthiknm8050@gmail.com  
 **Branch:** `main` & `team/sde-2-voicebot`  
@@ -12,10 +12,11 @@
 
 ## 🎯 Executive Summary
 
-This repository delivers the **complete, unified Agentic Workflow Engine** for the **Academia AI Voice Co-Pilot**, combining all deliverables across **Week 1** and **Week 2**:
+This repository delivers the **complete, unified Agentic Workflow Engine** for the **Academia AI Voice Co-Pilot**, combining all deliverables across **Week 1**, **Week 2**, and **Week 3**:
 
 - **Week 1 (Days 1–7):** Typed schemas, 7-state deterministic lifecycle state machine, harmless in-memory mock tools (`knowledge_search`, `course_schedule`), and human-in-the-loop approval gating.
-- **Week 2 (Days 8–14):** Plan validator (dependencies & cycle detection via Kahn's algorithm / 3-color DFS), allow-listed tool registry with argument type and permission scope enforcement, approval logic with TTL expiry, safe executor (timeouts, bounded retries strictly for idempotent operations, non-idempotent protection, and cancellation), and comprehensive policy testing (102 automated tests passing).
+- **Week 2 (Days 8–14):** Plan validator (dependencies & cycle detection via Kahn's algorithm / 3-color DFS), allow-listed tool registry with argument type and permission scope enforcement, approval logic with TTL expiry, safe executor (timeouts, bounded retries strictly for idempotent operations, non-idempotent protection, and cancellation).
+- **Week 3 (Days 15–21):** Checkpoint and resume with failed-step recovery (skips completed steps on resume), idempotency keys preventing duplicate tool runs, step-level audit trail with duration and credential masking, real-time typed progress events, reasoning proposal ingestion (`WorkflowProposal`), backend approval state service, and UI integration bridge with duplicate and expired approval protection (**115 automated tests passing**).
 
 ---
 
@@ -39,10 +40,11 @@ This repository delivers the **complete, unified Agentic Workflow Engine** for t
 │       ├── approval_manager.py             # Human-in-the-loop approval & TTL expiry manager
 │       ├── safe_executor.py                # Safe executor with timeouts & idempotent retries
 │       ├── mock_tools.py                   # Harmless in-memory mock tools
-│       ├── demo.py                         # Live interactive 5-scenario demonstration
+│       ├── demo.py                         # Live interactive Week 2 demonstration
+│       ├── demo_week3.py                   # Live interactive Week 3 demonstration (5 Scenarios)
 │       ├── requirements.txt                # Project dependencies
 │       ├── README.md                       # Voicebot module documentation
-│       └── tests/                          # 102 passing unit & policy tests
+│       └── tests/                          # 115 passing unit, policy & integration tests
 │           ├── conftest.py
 │           ├── test_workflow_schemas_and_sm.py
 │           ├── test_invalid_plans_and_transitions.py
@@ -52,10 +54,15 @@ This repository delivers the **complete, unified Agentic Workflow Engine** for t
 │           ├── test_tool_registry.py
 │           ├── test_approval_manager.py
 │           ├── test_safe_executor.py
-│           └── test_demo.py
+│           ├── test_demo.py
+│           ├── test_week3_checkpoint_and_resume.py
+│           ├── test_week3_audit_and_events.py
+│           ├── test_week3_reasoning_and_ui_integration.py
+│           └── test_week3_end_to_end_integration.py
 ├── project_explanation.md                  # Comprehensive technical deep dive
 ├── week1_explanation.md                    # Day-by-day breakdown of Week 1
 ├── week2_explanation.md                    # Day-by-day breakdown of Week 2
+├── week3_explanation.md                    # Day-by-day breakdown of Week 3
 ├── requirements.txt                        # Global requirements
 ├── README.md                               # This documentation
 └── .gitignore
@@ -71,25 +78,25 @@ This repository delivers the **complete, unified Agentic Workflow Engine** for t
 pip install -r requirements.txt
 ```
 
-### 2. Run All Automated Tests (102 Tests Passing)
+### 2. Run All Automated Tests (115 Tests Passing)
 
 ```bash
 cd projects/sde-2-voicebot
 python -m pytest tests/ -v
 ```
 
-### 3. Run the Live Interactive Demonstration (5 Scenarios)
+### 3. Run Week 3 Live Demonstration (5 Scenarios)
+
+```bash
+cd projects/sde-2-voicebot
+python demo_week3.py
+```
+
+### 4. Run Week 2 Live Demonstration
 
 ```bash
 cd projects/sde-2-voicebot
 python demo.py
-```
-
-### 4. Run the D14 Approved vs. Rejected Pipeline Demo
-
-```bash
-cd projects/sde-2-voicebot
-python -m pytest tests/test_demo.py -v -s
 ```
 
 ---

@@ -123,6 +123,7 @@ class WorkflowStep(BaseModel):
     timeout_seconds: Optional[float] = Field(default=None, ge=0.0, description="Step execution timeout in seconds")
     retry_policy: Optional[RetryPolicy] = Field(default=None, description="Bounded retry policy for idempotent failures")
     is_idempotent: bool = Field(default=True, description="Whether executing this step multiple times produces the same outcome")
+    idempotency_key: Optional[str] = Field(default=None, description="Optional caller-provided or computed idempotency key")
 
     @model_validator(mode="after")
     def enforce_consequential_approval_rule(self) -> "WorkflowStep":
@@ -153,6 +154,7 @@ class ApprovalRequest(BaseModel):
     ttl_seconds: Optional[float] = Field(default=None, ge=0.0, description="Time to live for this approval request in seconds")
     expires_at: Optional[datetime] = Field(default=None, description="Absolute expiration timestamp")
     decided_at: Optional[datetime] = Field(default=None, description="Timestamp of user decision")
+    decided_by: Optional[str] = Field(default=None, description="Identity of user or supervisor who decided")
     rejection_reason: Optional[str] = Field(default=None, description="Reason if rejected")
 
     @model_validator(mode="after")
@@ -237,3 +239,116 @@ class WorkflowResult(BaseModel):
     started_at: datetime = Field(..., description="Workflow execution start time")
     completed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Workflow completion time")
     error_details: Optional[Dict[str, Any]] = Field(default=None, description="Details if workflow ended in failure")
+
+
+# ===========================================================================
+# Week 3 (Days 15–21): Checkpoint, Audit Trail, Events & Proposal Integration
+# ===========================================================================
+
+class ProgressEventType(str, Enum):
+    """Event types for real-time workflow progress tracking and UI streaming."""
+    WORKFLOW_STARTED = "workflow_started"
+    STEP_STARTED = "step_started"
+    STEP_PROGRESS = "step_progress"
+    STEP_COMPLETED = "step_completed"
+    STEP_FAILED = "step_failed"
+    STEP_RETRIED = "step_retried"
+    STEP_RECOVERED = "step_recovered"
+    APPROVAL_REQUESTED = "approval_requested"
+    APPROVAL_GRANTED = "approval_granted"
+    APPROVAL_REJECTED = "approval_rejected"
+    APPROVAL_EXPIRED = "approval_expired"
+    WORKFLOW_PAUSED = "workflow_paused"
+    WORKFLOW_RESUMED = "workflow_resumed"
+    WORKFLOW_COMPLETED = "workflow_completed"
+    WORKFLOW_FAILED = "workflow_failed"
+    WORKFLOW_CANCELLED = "workflow_cancelled"
+
+
+class ProgressEvent(BaseModel):
+    """Structured progress event emitted during workflow execution."""
+    event_id: str = Field(default_factory=lambda: str(uuid4()), description="Unique event ID")
+    event_type: ProgressEventType = Field(..., description="Type of progress event")
+    plan_id: str = Field(..., description="Target WorkflowPlan ID")
+    step_id: Optional[str] = Field(default=None, description="Step ID if step-specific")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Timestamp of event")
+    message: str = Field(..., description="Human-readable event message")
+    data: Dict[str, Any] = Field(default_factory=dict, description="Structured event payload")
+
+
+class StepAuditRecord(BaseModel):
+    """Step-level immutable audit record for compliance and observability."""
+    audit_id: str = Field(default_factory=lambda: str(uuid4()), description="Unique audit record ID")
+    plan_id: str = Field(..., description="Target WorkflowPlan ID")
+    step_id: str = Field(..., description="Target step ID")
+    tool_name: str = Field(..., description="Tool executed")
+    status: StepStatus = Field(..., description="Terminal status of step execution")
+    arguments: Dict[str, Any] = Field(default_factory=dict, description="Input arguments passed to tool")
+    result: Optional[Any] = Field(default=None, description="Output payload from tool")
+    error_message: Optional[str] = Field(default=None, description="Error message if step failed")
+    attempts: int = Field(default=1, description="Number of execution attempts made")
+    duration_ms: float = Field(default=0.0, description="Execution wall-clock duration in milliseconds")
+    idempotency_key: Optional[str] = Field(default=None, description="Idempotency key associated with this invocation")
+    started_at: datetime = Field(..., description="Execution start timestamp")
+    completed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Execution finish timestamp")
+
+
+class StepCheckpoint(BaseModel):
+    """Persisted snapshot of an individual step state."""
+    step_id: str = Field(..., description="Step ID")
+    tool_name: str = Field(..., description="Tool name")
+    status: StepStatus = Field(..., description="Step execution status")
+    result: Optional[Any] = Field(default=None, description="Cached output result")
+    error_message: Optional[str] = Field(default=None, description="Last error message if failed")
+    attempts: int = Field(default=0, description="Attempts count")
+    idempotency_key: Optional[str] = Field(default=None, description="Idempotency key")
+    completed_at: Optional[datetime] = Field(default=None, description="Timestamp step completed")
+
+
+class WorkflowCheckpoint(BaseModel):
+    """
+    Checkpoint model capturing the complete snapshot of workflow execution state.
+    Enables pause/resume, failure recovery, and skipping of completed steps.
+    """
+    checkpoint_id: str = Field(default_factory=lambda: str(uuid4()), description="Unique checkpoint ID")
+    plan_id: str = Field(..., description="Target WorkflowPlan ID")
+    session_id: str = Field(..., description="Session ID")
+    correlation_id: str = Field(..., description="Correlation ID")
+    workflow_state: WorkflowState = Field(..., description="State machine state at checkpoint time")
+    completed_step_ids: List[str] = Field(default_factory=list, description="IDs of steps already completed successfully")
+    failed_step_id: Optional[str] = Field(default=None, description="ID of step that failed, if any")
+    step_results: Dict[str, Any] = Field(default_factory=dict, description="Outputs of completed steps keyed by step_id")
+    step_checkpoints: Dict[str, StepCheckpoint] = Field(default_factory=dict, description="Step checkpoints keyed by step_id")
+    idempotency_cache: Dict[str, Any] = Field(default_factory=dict, description="Idempotency key -> cached output map")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Checkpoint timestamp")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Optional metadata")
+
+
+class ProposalStep(BaseModel):
+    """A proposed step produced by the reasoning module."""
+    step_id: str = Field(..., description="Proposed step ID")
+    tool_name: str = Field(..., description="Tool to invoke")
+    description: str = Field(..., description="Explanation of what this step accomplishes")
+    arguments: Dict[str, Any] = Field(default_factory=dict, description="Arguments for the tool")
+    depends_on: List[str] = Field(default_factory=list, description="Step IDs this proposed step depends on")
+    risk_level: RiskLevel = Field(default=RiskLevel.INFORMATIONAL, description="Estimated risk classification")
+    is_idempotent: bool = Field(default=True, description="Whether this step is idempotent")
+    timeout_seconds: Optional[float] = Field(default=None, description="Optional step timeout")
+
+
+class WorkflowProposal(BaseModel):
+    """
+    Structured proposal generated by the Reasoning / LLM module (W3).
+    Ingested, policy-validated, and converted into an executable WorkflowPlan.
+    """
+    proposal_id: str = Field(default_factory=lambda: str(uuid4()), description="Unique proposal ID")
+    session_id: str = Field(..., description="Associated user session ID")
+    correlation_id: str = Field(default_factory=lambda: str(uuid4()), description="Tracing correlation ID")
+    source_utterance: str = Field(default="", description="Original student speech or text input")
+    intent: str = Field(default="", description="Recognized user intent")
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0, description="Reasoning confidence score")
+    title: str = Field(..., description="Title / goal of the proposed workflow")
+    proposed_steps: List[ProposalStep] = Field(default_factory=list, description="Ordered candidate steps")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Proposal timestamp")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Optional metadata")
+

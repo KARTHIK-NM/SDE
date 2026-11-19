@@ -11,12 +11,19 @@ Week 2 (Days 8-14): PlanValidator (DAG, cycles, allow-lists, scopes), Approval e
 from src.workflow.schemas import (
     ApprovalRequest,
     ApprovalStatus,
+    ProgressEvent,
+    ProgressEventType,
+    ProposalStep,
     RetryPolicy,
     RiskLevel,
+    StepAuditRecord,
+    StepCheckpoint,
     StepStatus,
     ToolFailureBehavior,
     ToolSpec,
+    WorkflowCheckpoint,
     WorkflowPlan,
+    WorkflowProposal,
     WorkflowResult,
     WorkflowState,
     WorkflowStep,
@@ -40,6 +47,23 @@ from src.workflow.executor import (
     ExecutionEvent,
     WorkflowExecutor,
 )
+from src.workflow.checkpoint import (
+    CheckpointManager,
+    CheckpointStore,
+)
+from src.workflow.idempotency import (
+    IdempotencyStore,
+)
+from src.workflow.audit import (
+    ProgressEventEmitter,
+    StepAuditLogger,
+)
+from src.workflow.integration import (
+    ApprovalIntegrationError,
+    BackendApprovalService,
+    WorkflowProposalParser,
+    WorkflowUIBridge,
+)
 
 __all__ = [
     # Schemas
@@ -54,6 +78,14 @@ __all__ = [
     "StepStatus",
     "ToolFailureBehavior",
     "RetryPolicy",
+    # Week 3 Schemas
+    "ProgressEventType",
+    "ProgressEvent",
+    "StepAuditRecord",
+    "StepCheckpoint",
+    "WorkflowCheckpoint",
+    "ProposalStep",
+    "WorkflowProposal",
     # State Machine
     "WorkflowStateMachine",
     "InvalidStateTransitionError",
@@ -69,4 +101,14 @@ __all__ = [
     # Executor
     "WorkflowExecutor",
     "ExecutionEvent",
+    # Week 3 Modules
+    "CheckpointManager",
+    "CheckpointStore",
+    "IdempotencyStore",
+    "StepAuditLogger",
+    "ProgressEventEmitter",
+    "ApprovalIntegrationError",
+    "BackendApprovalService",
+    "WorkflowProposalParser",
+    "WorkflowUIBridge",
 ]

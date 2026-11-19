@@ -142,3 +142,18 @@ class ExecutionRecord(BaseModel):
     step_results: List[StepResult] = Field(default_factory=list)
     audit_note: str = ""         # e.g. "rejected – no execution performed"
 
+
+# ---------------------------------------------------------------------------
+# Week 3 (Days 15–21) Reused Schemas
+# ---------------------------------------------------------------------------
+from src.workflow.schemas import (
+    ProgressEventType,
+    ProgressEvent,
+    StepAuditRecord,
+    StepCheckpoint,
+    WorkflowCheckpoint,
+    ProposalStep,
+    WorkflowProposal,
+)
+
+

@@ -25,9 +25,11 @@ from pydantic import BaseModel, Field
 from src.workflow.schemas import (
     ApprovalRequest,
     ApprovalStatus,
+    ProgressEventType,
     RiskLevel,
     StepStatus,
     ToolFailureBehavior,
+    WorkflowCheckpoint,
     WorkflowPlan,
     WorkflowResult,
     WorkflowState,
@@ -35,6 +37,9 @@ from src.workflow.schemas import (
 )
 from src.workflow.state_machine import WorkflowStateMachine
 from src.workflow.tools import ToolRegistry
+from src.workflow.checkpoint import CheckpointManager
+from src.workflow.idempotency import IdempotencyStore
+from src.workflow.audit import ProgressEventEmitter, StepAuditLogger
 
 
 class ExecutionEvent(BaseModel):
@@ -67,6 +72,11 @@ class WorkflowExecutor:
         caller_permissions: Optional[Iterable[str]] = None,
         default_step_timeout: Optional[float] = None,
         default_approval_ttl_seconds: Optional[float] = 300.0,
+        checkpoint_manager: Optional[CheckpointManager] = None,
+        idempotency_store: Optional[IdempotencyStore] = None,
+        audit_logger: Optional[StepAuditLogger] = None,
+        event_emitter: Optional[ProgressEventEmitter] = None,
+        backend_approval_service: Optional[Any] = None,
     ):
         self.plan = plan
         self.registry = registry or ToolRegistry.get_default_registry()
@@ -78,9 +88,17 @@ class WorkflowExecutor:
         self.default_approval_ttl_seconds = default_approval_ttl_seconds
         self.state_machine = WorkflowStateMachine(self.plan)
 
+        # Week 3 Observability & Recovery components
+        self.checkpoint_manager = checkpoint_manager or CheckpointManager()
+        self.idempotency_store = idempotency_store or IdempotencyStore()
+        self.audit_logger = audit_logger or StepAuditLogger()
+        self.event_emitter = event_emitter or ProgressEventEmitter()
+        self.backend_approval_service = backend_approval_service
+
         # Execution tracking
         self.step_results: Dict[str, Any] = {}
         self.pending_approvals: Dict[str, ApprovalRequest] = {}
+        self.resolved_approvals: Dict[str, ApprovalStatus] = {}
         self.approved_step_ids: Set[str] = set()
         self.events: List[ExecutionEvent] = []
         self.started_at: Optional[datetime] = None
@@ -104,6 +122,23 @@ class WorkflowExecutor:
             data=data,
         )
         self.events.append(event)
+
+        # Emit typed ProgressEvent for real-time progress listeners
+        try:
+            ptype = ProgressEventType(event_type.lower())
+        except ValueError:
+            if event_type.lower() == "awaiting_approval":
+                ptype = ProgressEventType.APPROVAL_REQUESTED
+            else:
+                ptype = ProgressEventType.STEP_PROGRESS
+
+        self.event_emitter.emit(
+            event_type=ptype,
+            plan_id=self.plan.plan_id,
+            message=message,
+            step_id=step_id,
+            data=data,
+        )
 
     def is_step_consequential(self, step: WorkflowStep) -> bool:
         """
@@ -140,6 +175,13 @@ class WorkflowExecutor:
             status=ApprovalStatus.PENDING,
             ttl_seconds=self.default_approval_ttl_seconds,
         )
+
+        if self.backend_approval_service is not None:
+            try:
+                self.backend_approval_service.register_request(request)
+            except Exception:
+                pass
+
         return request
 
     def approve_request(
@@ -151,7 +193,18 @@ class WorkflowExecutor:
         """
         Grants approval for a pending consequential action.
         If the request has already expired, approval is refused, guaranteeing zero execution.
+        If duplicate approval is attempted, it is rejected.
         """
+        # Duplicate approval protection
+        if approval_id in self.resolved_approvals:
+            prior_status = self.resolved_approvals[approval_id]
+            if prior_status == ApprovalStatus.APPROVED:
+                raise ValueError(f"Duplicate approval rejected: Request '{approval_id}' was already approved.")
+            elif prior_status == ApprovalStatus.REJECTED:
+                raise ValueError(f"Illegal approval: Request '{approval_id}' was already rejected.")
+            elif prior_status == ApprovalStatus.EXPIRED:
+                raise ValueError(f"Cannot approve expired request '{approval_id}'.")
+
         if approval_id not in self.pending_approvals:
             raise KeyError(f"Approval request '{approval_id}' not found among pending approvals.")
 
@@ -159,12 +212,20 @@ class WorkflowExecutor:
 
         # Check if request has expired
         if request.is_expired():
+            self.resolved_approvals[approval_id] = ApprovalStatus.EXPIRED
             return self.expire_request(approval_id, reason="Approval granted after request TTL expired")
 
         self.pending_approvals.pop(approval_id)
         request.status = ApprovalStatus.APPROVED
         request.decided_at = datetime.now(timezone.utc)
+        self.resolved_approvals[approval_id] = ApprovalStatus.APPROVED
         self.approved_step_ids.add(request.step_id)
+
+        if self.backend_approval_service is not None:
+            try:
+                self.backend_approval_service.approve(approval_id, approver=approver)
+            except Exception:
+                pass
 
         self._log_event(
             event_type="APPROVAL_GRANTED",
@@ -200,6 +261,13 @@ class WorkflowExecutor:
         request.status = ApprovalStatus.REJECTED
         request.decided_at = datetime.now(timezone.utc)
         request.rejection_reason = reason
+        self.resolved_approvals[approval_id] = ApprovalStatus.REJECTED
+
+        if self.backend_approval_service is not None:
+            try:
+                self.backend_approval_service.reject(approval_id, reason=reason)
+            except Exception:
+                pass
 
         # Find target step and mark it CANCELLED
         for step in self.plan.steps:
@@ -227,6 +295,13 @@ class WorkflowExecutor:
             )
 
         self.completed_at = datetime.now(timezone.utc)
+        self.checkpoint_manager.capture_checkpoint(
+            plan=self.plan,
+            workflow_state=self.current_state,
+            step_results=self.step_results,
+            idempotency_cache=self.idempotency_store.to_dict(),
+            metadata={"trigger": "approval_rejected", "approval_id": approval_id},
+        )
         return self._build_result(error_details={"cancelled_by_rejection": approval_id, "reason": reason})
 
     def expire_request(
@@ -245,6 +320,7 @@ class WorkflowExecutor:
         request.status = ApprovalStatus.EXPIRED
         request.decided_at = datetime.now(timezone.utc)
         request.rejection_reason = reason
+        self.resolved_approvals[approval_id] = ApprovalStatus.EXPIRED
 
         for step in self.plan.steps:
             if step.step_id == request.step_id:
@@ -270,6 +346,13 @@ class WorkflowExecutor:
             )
 
         self.completed_at = datetime.now(timezone.utc)
+        self.checkpoint_manager.capture_checkpoint(
+            plan=self.plan,
+            workflow_state=self.current_state,
+            step_results=self.step_results,
+            idempotency_cache=self.idempotency_store.to_dict(),
+            metadata={"trigger": "approval_expired", "approval_id": approval_id},
+        )
         return self._build_result(error_details={"cancelled_by_expiry": approval_id, "reason": reason})
 
     def check_for_expired_approvals(self) -> Optional[WorkflowResult]:
@@ -476,24 +559,118 @@ class WorkflowExecutor:
                     self.completed_at = datetime.now(timezone.utc)
                     return self._build_result(error_details={"failed_step": step.step_id, "error": err})
 
+            # Check Idempotency Cache before invoking tool
+            idemp_key = step.idempotency_key or self.idempotency_store.compute_key(
+                self.plan.plan_id,
+                step.step_id,
+                step.tool_name,
+                step.arguments,
+            )
+            step.idempotency_key = idemp_key
+
+            if step.is_idempotent and self.idempotency_store.has(idemp_key):
+                cached_res = self.idempotency_store.get(idemp_key)
+                step.status = StepStatus.SUCCEEDED
+                step.result = cached_res
+                self.step_results[step.step_id] = cached_res
+                now_ts = datetime.now(timezone.utc)
+                self.audit_logger.record_step(
+                    plan_id=self.plan.plan_id,
+                    step_id=step.step_id,
+                    tool_name=step.tool_name,
+                    status=StepStatus.SUCCEEDED,
+                    arguments=step.arguments,
+                    started_at=now_ts,
+                    completed_at=now_ts,
+                    result=cached_res,
+                    attempts=0,
+                    duration_ms=0.0,
+                    idempotency_key=idemp_key,
+                )
+                self._log_event(
+                    event_type="STEP_COMPLETED",
+                    message=f"Step '{step.step_id}' returned from idempotency cache",
+                    step_id=step.step_id,
+                    data={"idempotency_key": idemp_key, "cached": True},
+                )
+                self.checkpoint_manager.capture_checkpoint(
+                    plan=self.plan,
+                    workflow_state=self.current_state,
+                    step_results=self.step_results,
+                    idempotency_cache=self.idempotency_store.to_dict(),
+                    metadata={"trigger": "idempotency_hit", "step_id": step.step_id},
+                )
+                continue
+
             step.status = StepStatus.RUNNING
             self._log_event("STEP_STARTED", f"Executing step '{step.step_id}' with tool '{step.tool_name}'", step_id=step.step_id)
+            step_start_time = datetime.now(timezone.utc)
 
             try:
                 result = self._execute_step_with_timeout_and_retries(step, tool)
+                step_end_time = datetime.now(timezone.utc)
                 step.status = StepStatus.SUCCEEDED
                 step.result = result
                 self.step_results[step.step_id] = result
+                self.idempotency_store.set(idemp_key, result)
+
+                self.audit_logger.record_step(
+                    plan_id=self.plan.plan_id,
+                    step_id=step.step_id,
+                    tool_name=step.tool_name,
+                    status=StepStatus.SUCCEEDED,
+                    arguments=step.arguments,
+                    started_at=step_start_time,
+                    completed_at=step_end_time,
+                    result=result,
+                    attempts=1,
+                    idempotency_key=idemp_key,
+                )
+
                 self._log_event(
                     event_type="STEP_COMPLETED",
                     message=f"Step '{step.step_id}' finished successfully",
                     step_id=step.step_id,
                     data={"result_summary": str(result)[:100]},
                 )
+
+                # Capture checkpoint after successful step
+                self.checkpoint_manager.capture_checkpoint(
+                    plan=self.plan,
+                    workflow_state=self.current_state,
+                    step_results=self.step_results,
+                    idempotency_cache=self.idempotency_store.to_dict(),
+                    metadata={"trigger": "step_succeeded", "step_id": step.step_id},
+                )
             except Exception as e:
+                step_end_time = datetime.now(timezone.utc)
                 step.status = StepStatus.FAILED
                 step.error_message = str(e)
+
+                self.audit_logger.record_step(
+                    plan_id=self.plan.plan_id,
+                    step_id=step.step_id,
+                    tool_name=step.tool_name,
+                    status=StepStatus.FAILED,
+                    arguments=step.arguments,
+                    started_at=step_start_time,
+                    completed_at=step_end_time,
+                    error_message=str(e),
+                    attempts=1,
+                    idempotency_key=idemp_key,
+                )
+
                 self._log_event("STEP_FAILED", f"Step '{step.step_id}' failed: {e}", step_id=step.step_id)
+
+                # Capture checkpoint on step failure
+                self.checkpoint_manager.capture_checkpoint(
+                    plan=self.plan,
+                    workflow_state=WorkflowState.FAILED,
+                    step_results=self.step_results,
+                    idempotency_cache=self.idempotency_store.to_dict(),
+                    failed_step_id=step.step_id,
+                    metadata={"trigger": "step_failed", "step_id": step.step_id, "error": str(e)},
+                )
 
                 if step.risk_level == RiskLevel.DESTRUCTIVE or not (hasattr(tool.spec, 'failure_behavior') and tool.spec.failure_behavior == ToolFailureBehavior.IGNORE_AND_CONTINUE):
                     self.state_machine.transition(
@@ -512,6 +689,13 @@ class WorkflowExecutor:
                 )
             self.completed_at = datetime.now(timezone.utc)
             self._log_event("WORKFLOW_COMPLETED", "Workflow reached SUCCEEDED terminal state")
+            self.checkpoint_manager.capture_checkpoint(
+                plan=self.plan,
+                workflow_state=self.current_state,
+                step_results=self.step_results,
+                idempotency_cache=self.idempotency_store.to_dict(),
+                metadata={"trigger": "workflow_completed"},
+            )
             return self._build_result()
 
         return None
@@ -528,3 +712,74 @@ class WorkflowExecutor:
             completed_at=self.completed_at or datetime.now(timezone.utc),
             error_details=error_details,
         )
+
+    @classmethod
+    def from_checkpoint(
+        cls,
+        checkpoint: WorkflowCheckpoint,
+        plan: WorkflowPlan,
+        registry: Optional[ToolRegistry] = None,
+        checkpoint_manager: Optional[CheckpointManager] = None,
+        idempotency_store: Optional[IdempotencyStore] = None,
+        audit_logger: Optional[StepAuditLogger] = None,
+        event_emitter: Optional[ProgressEventEmitter] = None,
+        **kwargs,
+    ) -> "WorkflowExecutor":
+        """
+        Instantiates a WorkflowExecutor restored from a WorkflowCheckpoint.
+        Completed steps and cached results are restored so they are not re-executed.
+        """
+        cp_mgr = checkpoint_manager or CheckpointManager()
+        cp_mgr.apply_checkpoint_to_plan(checkpoint, plan)
+        idemp = idempotency_store or IdempotencyStore(checkpoint.idempotency_cache)
+
+        executor = cls(
+            plan=plan,
+            registry=registry,
+            checkpoint_manager=cp_mgr,
+            idempotency_store=idemp,
+            audit_logger=audit_logger,
+            event_emitter=event_emitter,
+            **kwargs,
+        )
+        executor.step_results = dict(checkpoint.step_results)
+        executor.state_machine._current_state = checkpoint.workflow_state
+        return executor
+
+    def recover_failed_step(
+        self,
+        step_id: str,
+        updated_arguments: Optional[Dict[str, Any]] = None,
+        resume: bool = True,
+    ) -> Optional[WorkflowResult]:
+        """
+        Recovers from a failed step by resetting its status to PENDING (with optional updated args).
+        Guarantees that already SUCCEEDED steps are NOT re-executed.
+        """
+        self.checkpoint_manager.prepare_failed_step_recovery(
+            plan=self.plan,
+            step_id=step_id,
+            updated_arguments=updated_arguments,
+        )
+        self.state_machine._current_state = WorkflowState.RUNNING
+
+        self.event_emitter.emit(
+            event_type=ProgressEventType.STEP_RECOVERED,
+            plan_id=self.plan.plan_id,
+            message=f"Step '{step_id}' recovered and prepared for re-execution",
+            step_id=step_id,
+            data={"updated_arguments": updated_arguments or {}},
+        )
+
+        self.checkpoint_manager.capture_checkpoint(
+            plan=self.plan,
+            workflow_state=self.current_state,
+            step_results=self.step_results,
+            idempotency_cache=self.idempotency_store.to_dict(),
+            metadata={"trigger": "failed_step_recovered", "step_id": step_id},
+        )
+
+        if resume:
+            return self.run()
+        return None
+
