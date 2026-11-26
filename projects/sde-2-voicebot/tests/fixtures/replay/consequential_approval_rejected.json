@@ -1,0 +1,79 @@
+{
+  "fixture_id": "fix-appr-rej-003",
+  "plan_id": "plan-appr-rej-003",
+  "session_id": "sess-appr-rej-003",
+  "correlation_id": "corr-appr-rej-003",
+  "title": "Unauthorized Account Purge Workflow",
+  "recorded_at": "2026-11-23T12:10:00Z",
+  "plan_snapshot": {
+    "plan_id": "plan-appr-rej-003",
+    "session_id": "sess-appr-rej-003",
+    "correlation_id": "corr-appr-rej-003",
+    "title": "Unauthorized Account Purge Workflow",
+    "schema_version": "1.0.0",
+    "state": "cancelled",
+    "steps": [
+      {
+        "step_id": "step-1",
+        "tool_name": "delete_student_account",
+        "arguments": {
+          "student_id": "STU-9999"
+        },
+        "description": "Permanently delete student account",
+        "risk_level": "destructive",
+        "requires_approval": true,
+        "depends_on": [],
+        "status": "cancelled",
+        "is_idempotent": false
+      }
+    ]
+  },
+  "final_state": "cancelled",
+  "step_traces": [
+    {
+      "step_id": "step-1",
+      "tool_name": "delete_student_account",
+      "arguments": {
+        "student_id": "STU-9999"
+      },
+      "status": "cancelled",
+      "result": null,
+      "error_message": "Approval rejected: Action rejected by human supervisor",
+      "duration_ms": 0.0,
+      "idempotency_key": "idemp-del-1"
+    }
+  ],
+  "progress_events": [
+    {
+      "event_type": "workflow_started",
+      "message": "Workflow started"
+    },
+    {
+      "event_type": "approval_requested",
+      "step_id": "step-1",
+      "message": "Step 1 awaiting approval"
+    },
+    {
+      "event_type": "approval_rejected",
+      "step_id": "step-1",
+      "message": "Approval rejected by security_officer. Zero tool execution."
+    },
+    {
+      "event_type": "workflow_cancelled",
+      "message": "Workflow CANCELLED due to rejection"
+    }
+  ],
+  "audit_records": [
+    {
+      "step_id": "step-1",
+      "tool_name": "delete_student_account",
+      "status": "cancelled",
+      "error_message": "Approval rejected by human supervisor",
+      "attempts": 0
+    }
+  ],
+  "metadata": {
+    "rejection_reason": "Destructive deletion refused by policy compliance team",
+    "zero_execution_verified": true
+  }
+}

@@ -64,6 +64,18 @@ from src.workflow.integration import (
     WorkflowProposalParser,
     WorkflowUIBridge,
 )
+from src.workflow.policy import (
+    PolicyMatrix,
+    PolicyRule,
+    PolicyViolationError,
+)
+from src.workflow.replay import (
+    ReplayEngine,
+    ReplayFixture,
+    ReplayStepTrace,
+    ReplayVerificationResult,
+    WorkflowRecorder,
+)
 
 __all__ = [
     # Schemas
@@ -111,4 +123,13 @@ __all__ = [
     "BackendApprovalService",
     "WorkflowProposalParser",
     "WorkflowUIBridge",
+    # Week 4 Modules
+    "PolicyMatrix",
+    "PolicyRule",
+    "PolicyViolationError",
+    "ReplayFixture",
+    "ReplayStepTrace",
+    "ReplayVerificationResult",
+    "WorkflowRecorder",
+    "ReplayEngine",
 ]

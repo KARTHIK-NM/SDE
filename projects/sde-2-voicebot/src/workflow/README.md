@@ -1,26 +1,39 @@
-# Workstream W4: Agentic Workflow Engine (Week 1 & Week 2)
+# Workstream W4: Agentic Workflow Engine (Weeks 1, 2, 3 & 4 / Days 1–30)
 
 **Student:** Karthik N M  
 **Team:** SDE 2 (`projects/sde-2-voicebot/`)  
-**Scope:** Days 1–14 (Plan Validation, Allow-Listed Tool Registry, Approval Logic & Safe Executor)
+**Scope:** Days 1–30 (Foundation, Safe Execution, Checkpoint/Audit/Integration, Hardening & Release Gate)
 
 ---
 
 ## 1. Executive Summary
 
-This repository delivers the complete foundation and safe execution engine for the Academiaai Voicebot, strictly adhering to the requirements of Workstream W4 across Weeks 1 & 2:
+This package delivers the production-ready Agentic Workflow Engine for the Academiaai Voicebot, strictly adhering to Workstream W4 across Weeks 1–4:
 
 ### Week 1 (Days 1–7): Foundation & First Vertical Slice
 1. **Typed Workflow Schemas (Days 1–2):** Single-source schemas defined in `src/workflow/schemas.py` (`WorkflowPlan`, `WorkflowStep`, `ToolSpec`, `ApprovalRequest`, `WorkflowResult`).
 2. **Deterministic State Machine (Days 1–2):** Enforces lifecycle transitions (`draft`, `awaiting_approval`, `running`, `paused`, `succeeded`, `failed`, `cancelled`) with full audit history in `src/workflow/state_machine.py`.
-3. **Mock Tools (Days 3–4):** Implements two harmless mock tools (`MockKnowledgeSearchTool`, `MockCourseScheduleTool`) with no external sending, and safe `ToolRegistry` in `src/workflow/tools.py`.
+3. **Mock Tools (Days 3–4):** Two harmless mock tools (`MockKnowledgeSearchTool`, `MockCourseScheduleTool`) with no external sending, and safe `ToolRegistry` in `src/workflow/tools.py`.
 4. **Agentic Executor (Days 3–4):** Orchestrates step execution in mock mode with a mandatory safety gate where sensitive/destructive actions automatically default to awaiting human approval in `src/workflow/executor.py`.
 
 ### Week 2 (Days 8–14): Safe Execution Upgrade
-1. **Plan Validator (Days 8–9):** `PlanValidator` in `src/workflow/validator.py` detects dependency cycles (DFS), missing dependencies, duplicate IDs, unknown tools, argument types, and enforces permission scopes.
+1. **Plan Validator (Days 8–9):** `PlanValidator` in `src/workflow/validator.py` detects dependency cycles (3-color DFS), missing dependencies, duplicate IDs, unknown tools, argument types, and enforces permission scopes.
 2. **Approval Logic & Expiry (Days 10–11):** `ApprovalRequest` includes TTL (`ttl_seconds`, `expires_at`). Rejection or expiration strictly guarantees ZERO tool execution and logs safe audit events.
 3. **Safe Executor (Days 12–13):** `WorkflowExecutor` enforces step timeouts, bounded retries strictly for idempotent steps (`is_idempotent=True`), non-idempotent safety, and immediate cancellation.
-4. **Policy Tests & Live Demonstration (Day 14):** 47 automated tests in `tests/` and live demonstration in `demo.py` covering approved, rejected, expired, and invalid plans.
+4. **Policy Tests & Live Demonstration (Day 14):** Automated tests in `tests/` and live demonstration in `demo.py`.
+
+### Week 3 (Days 15–21): Checkpoint, Audit Trail & Integration
+1. **Checkpoint & Resume (Days 15–16):** `CheckpointStore`, `CheckpointManager`, and failed-step recovery helper skipping completed steps on resume (`src/workflow/checkpoint.py`).
+2. **Idempotency Keys (Days 15–16):** `IdempotencyStore` using SHA-256 key derivation (`src/workflow/idempotency.py`).
+3. **Audit Trail & Events (Days 17–18):** Append-only `StepAuditLogger` with credential redaction, and `ProgressEventEmitter` with typed events (`src/workflow/audit.py`).
+4. **Reasoning & UI Integration (Days 19–20):** `WorkflowProposalParser`, `BackendApprovalService`, and `WorkflowUIBridge` (`src/workflow/integration.py`).
+
+### Week 4 (Days 22–30): Hardening & Release Gate
+1. **Failure-Injection Test Suite (Days 22–24):** Tests cyclic plans, malicious path traversals, null bytes, out-of-scope fields, duplicate submissions, step timeouts, and rejected approvals in `tests/test_week4_failure_injection.py`.
+2. **Deterministic Replay Engine (Days 25–27):** Records and replays execution traces with zero side-effects in `src/workflow/replay.py` and `tests/test_week4_replay.py`.
+3. **Authoritative Policy Matrix (Days 25–27):** Canonical security mapping in `src/workflow/policy.py`, documented in `POLICY_MATRIX.md`, tested in `tests/test_week4_policy_matrix.py`.
+4. **Runbook & Safe Tool Guide (Days 28–29):** Committed in `RUNBOOK.md` and `SAFE_TOOL_GUIDE.md`.
+5. **Final Comprehensive Demonstration (Day 30):** 8-scenario live demonstration in `demo_week4.py`.
 
 ---
 
@@ -29,101 +42,40 @@ This repository delivers the complete foundation and safe execution engine for t
 ```
 projects/sde-2-voicebot/
 │
-├── demo.py                                     # Live execution demonstration (Scenarios 1-5)
+├── POLICY_MATRIX.md                           # Authoritative Policy Matrix
+├── RUNBOOK.md                                 # Operations Manual & Incident Response
+├── SAFE_TOOL_GUIDE.md                         # Guide for adding safe allow-listed tools
+├── demo_week4.py                              # Week 4 comprehensive demonstration (8 Scenarios)
+│
 ├── src/
-│   ├── __init__.py
 │   └── workflow/
-│       ├── __init__.py                         # Package exports
-│       ├── schemas.py                          # Pydantic schemas (W1 & W2: RetryPolicy, TTL, timeouts)
-│       ├── state_machine.py                    # State machine & transition rules
-│       ├── validator.py                        # PlanValidator: cycles, deps, allow-list, scopes (W2)
-│       ├── tools.py                            # Harmless mock tools, registry & permissions (W2)
-│       ├── executor.py                         # Safe executor: timeouts, retries, expiry (W2)
-│       └── README.md                           # Documentation & test report
-└── tests/
-    ├── __init__.py
-    ├── test_workflow_schemas_and_sm.py         # Schema & basic SM tests
-    ├── test_invalid_plans_and_transitions.py   # Invalid plans & transition matrix
-    ├── test_mock_tools_and_executor.py         # Mock tools & executor tests
-    └── test_week2_policy_and_safe_executor.py  # Week 2 Policy, Validator, Expiry & Retries (W2)
+│       ├── __init__.py                        # Package exports
+│       ├── schemas.py                         # Single source of truth for workflow schemas
+│       ├── state_machine.py                   # 7-state deterministic state machine
+│       ├── validator.py                       # PlanValidator (cycles, deps, tools, scopes)
+│       ├── tools.py                           # BaseTool, mock tools with input defenses, ToolRegistry
+│       ├── executor.py                        # Safe executor (timeouts, retries, approvals)
+│       ├── checkpoint.py                      # CheckpointStore, CheckpointManager & recovery
+│       ├── idempotency.py                     # IdempotencyStore with SHA-256 keys
+│       ├── audit.py                           # StepAuditLogger & ProgressEventEmitter
+│       ├── integration.py                     # Reasoning parser & UI bridge
+│       ├── policy.py                          # PolicyMatrix & PolicyViolationError (Week 4)
+│       ├── replay.py                          # ReplayEngine, ReplayFixture, WorkflowRecorder (Week 4)
+│       └── README.md                          # This architecture reference
+│
+└── tests/                                     # 153 passing automated tests
 ```
 
 ---
 
-## 3. Schemas Specification (`src/workflow/schemas.py`)
+## 3. Running All Tests & Demo
 
-| Schema | Purpose | Key Attributes |
-| :--- | :--- | :--- |
-| `ToolSpec` | Declares allow-listed tools | `name`, `purpose`, `input_schema`, `output_schema`, `permission_requirements`, `risk_level`, `failure_behavior` |
-| `RetryPolicy` | Bounded retry specification | `max_retries`, `backoff_seconds`, `retry_on_exceptions` |
-| `WorkflowStep` | Atomic executable action | `step_id`, `tool_name`, `arguments`, `risk_level`, `requires_approval`, `depends_on`, `status`, `timeout_seconds`, `retry_policy`, `is_idempotent` |
-| `ApprovalRequest` | Human-in-the-loop permission request | `approval_id`, `plan_id`, `step_id`, `tool_name`, `risk_level`, `action_summary`, `ttl_seconds`, `expires_at`, `status` |
-| `WorkflowPlan` | Multi-step execution DAG | `plan_id`, `session_id`, `correlation_id`, `title`, `steps`, `state`, `schema_version` |
-| `WorkflowResult` | Final terminal execution report | `plan_id`, `session_id`, `final_state`, `step_results`, `started_at`, `completed_at`, `error_details` |
-
-### Safety Invariants
-1. **Automatic Consequential Escalation:** Any step with `RiskLevel.SENSITIVE` or `RiskLevel.DESTRUCTIVE` is automatically coerced to `requires_approval = True`.
-2. **Non-Idempotent Protection:** Steps with `is_idempotent = False` are strictly protected against retries, even if a retry policy is specified.
-3. **Approval Expiry:** Requests exceeding TTL are marked `EXPIRED`, guaranteeing zero downstream tool execution.
-
----
-
-## 4. State Machine Transition Matrix (`src/workflow/state_machine.py`)
-
-```mermaid
-stateDiagram-v2
-    [*] --> DRAFT
-    DRAFT --> RUNNING: Auto-run (all informational)
-    DRAFT --> AWAITING_APPROVAL: Consequential step present
-    DRAFT --> CANCELLED: Pre-emptively cancelled
-    
-    AWAITING_APPROVAL --> RUNNING: Approval granted
-    AWAITING_APPROVAL --> CANCELLED: Approval rejected or TTL expired
-    AWAITING_APPROVAL --> FAILED: Timed out / error
-    
-    RUNNING --> PAUSED: Operator pause
-    PAUSED --> RUNNING: Operator resume
-    PAUSED --> CANCELLED: Operator cancel
-    
-    RUNNING --> AWAITING_APPROVAL: Consequential step encountered
-    RUNNING --> SUCCEEDED: All steps complete
-    RUNNING --> FAILED: Tool error / step timeout
-    RUNNING --> CANCELLED: Cancelled
-```
-
----
-
-## 5. Week 2 Acceptance Criteria Validation
-
-| Requirement | Implementation | Validation Test |
-| :--- | :--- | :--- |
-| **Cycles & missing dependencies rejected** | `PlanValidator.validate_dependencies_and_cycles` uses 3-color DFS | `test_validator_rejects_missing_dependency`, `test_validator_rejects_cycles_with_clear_error` |
-| **Unknown tools & invalid args rejected** | `ToolRegistry.validate_tool_call` checks allow-list and argument types | `test_validator_rejects_unknown_tool`, `test_validator_rejects_invalid_argument_types` |
-| **Permission scopes enforced** | `BaseTool.check_permissions` validates against caller scopes | `test_validator_enforces_permission_scopes` |
-| **Rejection guarantees no execution** | `WorkflowExecutor.reject_request` cancels step & downstream DAG | `test_approval_rejection_guarantees_no_execution_and_audit_event` |
-| **Expiry guarantees no execution** | `WorkflowExecutor.expire_request` verifies TTL and cancels step | `test_approval_expiry_guarantees_no_execution_and_audit_event`, `test_approving_expired_request_refuses_execution` |
-| **Executor timeouts enforced** | ThreadPoolExecutor with timeout raises `TimeoutError` | `test_executor_enforces_step_timeout` |
-| **Bounded retries only for idempotent calls** | `_execute_step_with_timeout_and_retries` checks `step.is_idempotent` | `test_bounded_retries_for_idempotent_step`, `test_retries_strictly_prohibited_for_non_idempotent_step` |
-| **Cancellation works** | `WorkflowExecutor.cancel` immediately halts all active/pending steps | `test_executor_cancellation_halts_workflow_safely` |
-| **Harmless mock tools** | `knowledge_search` and `course_schedule` operate on local in-memory data | `test_mock_tools_harmless_and_consequential_behavior` |
-
----
-
-## 6. Running Tests & Live Demonstration
-
-### Running Unit & Policy Tests (47 Tests Passing):
 ```bash
 cd projects/sde-2-voicebot
-python -m pytest tests -v
-```
 
-### Running Live Demonstration:
-```bash
-python projects/sde-2-voicebot/demo.py
+# Run all 153 tests
+pytest -v
+
+# Run Week 4 Live Demonstration
+python demo_week4.py
 ```
-Demonstrates:
-- **Scenario 1:** Harmless automated workflow (SUCCEEDED)
-- **Scenario 2:** Consequential action with approval granted (SUCCEEDED)
-- **Scenario 3:** Consequential action with rejection (CANCELLED, zero tool execution)
-- **Scenario 4:** Consequential action with approval TTL expiry (CANCELLED, zero tool execution)
-- **Scenario 5:** Plan validation cycle detection before execution

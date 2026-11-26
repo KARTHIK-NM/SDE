@@ -1,0 +1,80 @@
+{
+  "fixture_id": "fix-timeout-004",
+  "plan_id": "plan-timeout-004",
+  "session_id": "sess-timeout-004",
+  "correlation_id": "corr-timeout-004",
+  "title": "Unresponsive External Service Workflow",
+  "recorded_at": "2026-11-23T12:15:00Z",
+  "plan_snapshot": {
+    "plan_id": "plan-timeout-004",
+    "session_id": "sess-timeout-004",
+    "correlation_id": "corr-timeout-004",
+    "title": "Unresponsive External Service Workflow",
+    "schema_version": "1.0.0",
+    "state": "failed",
+    "steps": [
+      {
+        "step_id": "step-1",
+        "tool_name": "knowledge_search",
+        "arguments": {
+          "query": "heavy query"
+        },
+        "description": "Slow query step",
+        "risk_level": "informational",
+        "requires_approval": false,
+        "depends_on": [],
+        "status": "failed",
+        "timeout_seconds": 0.5,
+        "is_idempotent": true
+      }
+    ]
+  },
+  "final_state": "failed",
+  "step_traces": [
+    {
+      "step_id": "step-1",
+      "tool_name": "knowledge_search",
+      "arguments": {
+        "query": "heavy query"
+      },
+      "status": "failed",
+      "result": null,
+      "error_message": "Step 'step-1' execution timed out after 0.5 seconds",
+      "duration_ms": 501.2,
+      "idempotency_key": "idemp-tout-1"
+    }
+  ],
+  "progress_events": [
+    {
+      "event_type": "workflow_started",
+      "message": "Workflow started"
+    },
+    {
+      "event_type": "step_started",
+      "step_id": "step-1",
+      "message": "Step 1 started"
+    },
+    {
+      "event_type": "step_failed",
+      "step_id": "step-1",
+      "message": "Step 1 timed out after 0.5s"
+    },
+    {
+      "event_type": "workflow_failed",
+      "message": "Workflow reached FAILED terminal state"
+    }
+  ],
+  "audit_records": [
+    {
+      "step_id": "step-1",
+      "tool_name": "knowledge_search",
+      "status": "failed",
+      "error_message": "TimeoutError: Step execution timed out",
+      "attempts": 1
+    }
+  ],
+  "metadata": {
+    "timeout_seconds": 0.5,
+    "failure_type": "timeout"
+  }
+}

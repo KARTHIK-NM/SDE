@@ -1,0 +1,128 @@
+{
+  "fixture_id": "fix-appr-grant-002",
+  "plan_id": "plan-appr-grant-002",
+  "session_id": "sess-appr-grant-002",
+  "correlation_id": "corr-appr-grant-002",
+  "title": "Academic Record Profile Update Workflow",
+  "recorded_at": "2026-11-23T12:05:00Z",
+  "plan_snapshot": {
+    "plan_id": "plan-appr-grant-002",
+    "session_id": "sess-appr-grant-002",
+    "correlation_id": "corr-appr-grant-002",
+    "title": "Academic Record Profile Update Workflow",
+    "schema_version": "1.0.0",
+    "state": "succeeded",
+    "steps": [
+      {
+        "step_id": "step-1",
+        "tool_name": "knowledge_search",
+        "arguments": {
+          "query": "graduation checklist"
+        },
+        "description": "Check requirements",
+        "risk_level": "informational",
+        "requires_approval": false,
+        "depends_on": [],
+        "status": "succeeded",
+        "is_idempotent": true
+      },
+      {
+        "step_id": "step-2",
+        "tool_name": "update_student_profile",
+        "arguments": {
+          "student_id": "STU-8821",
+          "field": "advisor",
+          "value": "Dr. Turing"
+        },
+        "description": "Update assigned academic advisor",
+        "risk_level": "sensitive",
+        "requires_approval": true,
+        "depends_on": ["step-1"],
+        "status": "succeeded",
+        "is_idempotent": false
+      }
+    ]
+  },
+  "final_state": "succeeded",
+  "step_traces": [
+    {
+      "step_id": "step-1",
+      "tool_name": "knowledge_search",
+      "arguments": {
+        "query": "graduation checklist"
+      },
+      "status": "succeeded",
+      "result": {
+        "status": "success",
+        "query": "graduation checklist",
+        "mock_mode": true
+      },
+      "duration_ms": 10.0,
+      "idempotency_key": "idemp-grant-1"
+    },
+    {
+      "step_id": "step-2",
+      "tool_name": "update_student_profile",
+      "arguments": {
+        "student_id": "STU-8821",
+        "field": "advisor",
+        "value": "Dr. Turing"
+      },
+      "status": "succeeded",
+      "result": {
+        "status": "success",
+        "student_id": "STU-8821",
+        "updated": true,
+        "mock_mode": true
+      },
+      "duration_ms": 25.0,
+      "idempotency_key": "idemp-grant-2"
+    }
+  ],
+  "progress_events": [
+    {
+      "event_type": "workflow_started",
+      "message": "Workflow started"
+    },
+    {
+      "event_type": "step_completed",
+      "step_id": "step-1",
+      "message": "Step 1 complete"
+    },
+    {
+      "event_type": "approval_requested",
+      "step_id": "step-2",
+      "message": "Step 2 awaiting human approval"
+    },
+    {
+      "event_type": "approval_granted",
+      "step_id": "step-2",
+      "message": "Approval granted by academic_dean"
+    },
+    {
+      "event_type": "step_completed",
+      "step_id": "step-2",
+      "message": "Step 2 finished"
+    },
+    {
+      "event_type": "workflow_completed",
+      "message": "Workflow SUCCEEDED"
+    }
+  ],
+  "audit_records": [
+    {
+      "step_id": "step-1",
+      "tool_name": "knowledge_search",
+      "status": "succeeded"
+    },
+    {
+      "step_id": "step-2",
+      "tool_name": "update_student_profile",
+      "status": "succeeded"
+    }
+  ],
+  "metadata": {
+    "approver": "academic_dean",
+    "approval_id": "appr-grant-99"
+  }
+}

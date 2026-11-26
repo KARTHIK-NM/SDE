@@ -1,0 +1,145 @@
+{
+  "fixture_id": "fix-norm-001",
+  "plan_id": "plan-norm-001",
+  "session_id": "sess-norm-001",
+  "correlation_id": "corr-norm-001",
+  "title": "Academic Course Inquiry & Schedule Lookup",
+  "recorded_at": "2026-11-23T12:00:00Z",
+  "plan_snapshot": {
+    "plan_id": "plan-norm-001",
+    "session_id": "sess-norm-001",
+    "correlation_id": "corr-norm-001",
+    "title": "Academic Course Inquiry & Schedule Lookup",
+    "schema_version": "1.0.0",
+    "state": "succeeded",
+    "steps": [
+      {
+        "step_id": "step-1",
+        "tool_name": "knowledge_search",
+        "arguments": {
+          "query": "cs101 introduction",
+          "max_results": 2
+        },
+        "description": "Look up course syllabus and overview",
+        "risk_level": "informational",
+        "requires_approval": false,
+        "depends_on": [],
+        "status": "succeeded",
+        "is_idempotent": true
+      },
+      {
+        "step_id": "step-2",
+        "tool_name": "course_schedule",
+        "arguments": {
+          "course_code": "CS101",
+          "term": "Fall 2026"
+        },
+        "description": "Look up lecture time and classroom",
+        "risk_level": "informational",
+        "requires_approval": false,
+        "depends_on": ["step-1"],
+        "status": "succeeded",
+        "is_idempotent": true
+      }
+    ]
+  },
+  "final_state": "succeeded",
+  "step_traces": [
+    {
+      "step_id": "step-1",
+      "tool_name": "knowledge_search",
+      "arguments": {
+        "query": "cs101 introduction",
+        "max_results": 2
+      },
+      "status": "succeeded",
+      "result": {
+        "status": "success",
+        "query": "cs101 introduction",
+        "count": 1,
+        "results": [
+          {
+            "id": "KB-101",
+            "title": "CS101: Introduction to Computer Science",
+            "content": "CS101 lectures occur Mondays and Wednesdays at 10:00 AM."
+          }
+        ],
+        "mock_mode": true
+      },
+      "duration_ms": 12.5,
+      "idempotency_key": "idemp-step1-key"
+    },
+    {
+      "step_id": "step-2",
+      "tool_name": "course_schedule",
+      "arguments": {
+        "course_code": "CS101",
+        "term": "Fall 2026"
+      },
+      "status": "succeeded",
+      "result": {
+        "status": "success",
+        "course_code": "CS101",
+        "course_name": "Introduction to Computer Science",
+        "term": "Fall 2026",
+        "instructor": "Dr. Alan Turing",
+        "schedule": "Mondays and Wednesdays 10:00 AM - 11:30 AM",
+        "location": "Turing Hall, Room 101",
+        "credits": 4,
+        "mock_mode": true
+      },
+      "duration_ms": 8.2,
+      "idempotency_key": "idemp-step2-key"
+    }
+  ],
+  "progress_events": [
+    {
+      "event_type": "workflow_started",
+      "message": "Workflow started in safe mock mode"
+    },
+    {
+      "event_type": "step_started",
+      "step_id": "step-1",
+      "message": "Executing knowledge_search"
+    },
+    {
+      "event_type": "step_completed",
+      "step_id": "step-1",
+      "message": "Step 1 completed"
+    },
+    {
+      "event_type": "step_started",
+      "step_id": "step-2",
+      "message": "Executing course_schedule"
+    },
+    {
+      "event_type": "step_completed",
+      "step_id": "step-2",
+      "message": "Step 2 completed"
+    },
+    {
+      "event_type": "workflow_completed",
+      "message": "Workflow reached SUCCEEDED"
+    }
+  ],
+  "audit_records": [
+    {
+      "step_id": "step-1",
+      "tool_name": "knowledge_search",
+      "status": "succeeded",
+      "attempts": 1,
+      "duration_ms": 12.5
+    },
+    {
+      "step_id": "step-2",
+      "tool_name": "course_schedule",
+      "status": "succeeded",
+      "attempts": 1,
+      "duration_ms": 8.2
+    }
+  ],
+  "metadata": {
+    "environment": "mock_sandbox",
+    "operator": "test_suite"
+  }
+}

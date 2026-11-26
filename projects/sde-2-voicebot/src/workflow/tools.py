@@ -50,6 +50,12 @@ class BaseTool(ABC):
                 )
 
         properties = self.spec.input_schema.get("properties", {})
+        additional_props = self.spec.input_schema.get("additionalProperties", True)
+        if additional_props is False:
+            for field in arguments:
+                if field not in properties:
+                    raise ValueError(f"Tool '{self.name}' received disallowed or out-of-scope argument: '{field}'")
+
         for field, value in arguments.items():
             if field in properties:
                 prop_info = properties[field]
@@ -66,6 +72,21 @@ class BaseTool(ABC):
                     raise ValueError(f"Tool '{self.name}' argument '{field}' must be a list/array, got {type(value).__name__}")
                 elif expected_type == "object" and not isinstance(value, dict):
                     raise ValueError(f"Tool '{self.name}' argument '{field}' must be an object/dict, got {type(value).__name__}")
+
+                # Security: Malicious injection & path traversal sanitization
+                if isinstance(value, str):
+                    if "\x00" in value:
+                        raise ValueError(f"Tool '{self.name}' argument '{field}' contains forbidden null byte sequence")
+                    traversal_indicators = ["../", "..\\", "/etc/", "\\windows\\", "..", "/proc/", "/sys/"]
+                    if any(traversal in value.lower() for traversal in ("../", "..\\", "/etc/passwd", "\\windows\\system32")):
+                        raise ValueError(f"Tool '{self.name}' argument '{field}' contains malicious path traversal sequence: '{value}'")
+
+                # Integer bounds validation
+                if isinstance(value, int) and not isinstance(value, bool):
+                    if "minimum" in prop_info and value < prop_info["minimum"]:
+                        raise ValueError(f"Tool '{self.name}' argument '{field}' must be >= {prop_info['minimum']}, got {value}")
+                    if "maximum" in prop_info and value > prop_info["maximum"]:
+                        raise ValueError(f"Tool '{self.name}' argument '{field}' must be <= {prop_info['maximum']}, got {value}")
 
     def check_permissions(self, granted_permissions: Optional[Iterable[str]]) -> None:
         """
@@ -103,9 +124,10 @@ class MockKnowledgeSearchTool(BaseTool):
             purpose="Searches the university academic knowledge base, course schedules, and FAQ articles.",
             input_schema={
                 "type": "object",
+                "additionalProperties": False,
                 "properties": {
                     "query": {"type": "string", "description": "Search keyword or query phrase"},
-                    "max_results": {"type": "integer", "description": "Maximum entries to return", "default": 3},
+                    "max_results": {"type": "integer", "description": "Maximum entries to return", "default": 3, "minimum": 1, "maximum": 50},
                 },
                 "required": ["query"],
             },
@@ -202,6 +224,7 @@ class MockCourseScheduleTool(BaseTool):
             purpose="Retrieves course schedules, lecture timings, classroom locations, and instructor details.",
             input_schema={
                 "type": "object",
+                "additionalProperties": False,
                 "properties": {
                     "course_code": {
                         "type": "string",

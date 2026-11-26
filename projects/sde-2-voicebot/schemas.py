@@ -156,4 +156,18 @@ from src.workflow.schemas import (
     WorkflowProposal,
 )
 
+# ---------------------------------------------------------------------------
+# Week 4 (Days 22–30) Reused Policy & Replay Models
+# ---------------------------------------------------------------------------
+from src.workflow.policy import (
+    PolicyRule,
+    PolicyMatrix,
+    PolicyViolationError,
+)
+from src.workflow.replay import (
+    ReplayStepTrace,
+    ReplayFixture,
+    ReplayVerificationResult,
+)
+
 
